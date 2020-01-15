@@ -1,9 +1,12 @@
-global._ = require('lodash');
-global.Boom = require('boom');
-global.Joi = require('joi');
+global.R = require('ramda');
+global.Joi = require('@hapi/joi');
+global.Boom = require('@hapi/boom');
 
-const Hapi = require('hapi');
-const Inert = require('inert');
+const Hapi = require('@hapi/hapi');
+const Inert = require('@hapi/inert');
+const Vision = require('@hapi/vision');
+const HapiSwagger = require('hapi-swagger');
+const Pack = require('../package.json');
 const Massive = require('massive');
 
 const server = new Hapi.Server({
@@ -17,17 +20,30 @@ const server = new Hapi.Server({
     }
 });
 
+const swaggerOptions = {
+    info: {
+        title: 'API Documentation',
+        version: Pack.version
+    }
+};
+
 const start = () =>
     server
-        .register([Inert])
+        .register([
+            Inert,
+            Vision,
+            {
+                plugin: HapiSwagger,
+                options: swaggerOptions
+            }
+        ])
         .then(() => server.start())
-        .then(() => Massive(config.postgres.connectionString))
+        .then(() => Massive(config.postgres.connection.string))
         .then(massive => {
             const Models = require('./api/models/');
             const Handlers = require('./api/handlers');
-            const Validations = require('./api/validations');
             const Routes = require('./api/routes');
-            Routes(server, Handlers(Models(massive)), Validations());
+            Routes(server, Handlers(Models(massive)));
         });
 
 module.exports = {
